@@ -1,0 +1,40 @@
+name: Tag on update
+on:
+  schedule:
+  - cron: '*/5 * * * *'
+jobs:
+  tag-on-update:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+    - id: generate-tags
+      run: |
+        NGINX_URL="$(curl --head https://github.com/nginx/nginx/releases/latest --output /dev/null --write-out '%{redirect_url}')"
+        NGINX_VERSION="${NGINX_URL##*/release-}"
+        NGINX_DAV_EXT_MODULE_URL="$(curl --head https://github.com/arut/nginx-dav-ext-module/releases/latest --output /dev/null --write-out '%{redirect_url}')"
+        NGINX_DAV_EXT_MODULE_VERSION="${NGINX_DAV_EXT_MODULE_URL##*/v}"
+        printf 'TAG=%s\nNGINX_VERSION=%s\n' "nginx-${NGINX_VERSION}_nginx-dav-ext-module-$NGINX_DAV_EXT_MODULE_VERSION" "$NGINX_VERSION" >>"$GITHUB_OUTPUT"
+    - id: tag-exists
+      run: |
+        HTTP_CODE="$(curl --head "${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.generate-tags.outputs.TAG }}" --output /dev/null --write-out '%{http_code}')"
+        printf 'HTTP_CODE=%s\n' "$HTTP_CODE" >>"$GITHUB_OUTPUT"
+    - id: image-exists
+      if: ${{ success() && steps.tag-exists.outputs.HTTP_CODE == 404 }}
+      run: |
+        if docker manifest inspect "nginx:${{ steps.generate-tags.outputs.NGINX_VERSION }}" >/dev/null; then
+          IMAGE_EXISTS=1
+        else
+          DOCKER_MANIFEST_INSPECT_EXIT_CODE="$?"
+          if [ "$DOCKER_MANIFEST_INSPECT_EXIT_CODE" != "125" ]; then
+            exit "$DOCKER_MANIFEST_INSPECT_EXIT_CODE"
+          fi
+        fi
+        printf 'IMAGE_EXISTS=%s\n' "$IMAGE_EXISTS" >>"$GITHUB_OUTPUT"
+    - if: ${{ success() && steps.tag-exists.outputs.HTTP_CODE == 404 && steps.image-exists.outputs.IMAGE_EXISTS == 1 }}
+      run: |
+        curl -X POST ${{ github.api_url }}/repos/${{ github.repository }}/git/refs \
+          -H 'Authorization: Bearer ${{ secrets.RECURSIVE_ACTIONS }}' \
+          -H 'Accept: application/vnd.github+json' \
+          --data-raw '{"ref":"refs/tags/${{ steps.generate-tags.outputs.TAG }}","sha":"${{ github.sha }}"}' \
+          --fail
