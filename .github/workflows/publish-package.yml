@@ -26,7 +26,7 @@ jobs:
         NGINX_VERSION="${REST%%_*}"
         NGINX_DAV_EXT_MODULE_VERSION="${REST#*_nginx-dav-ext-module-}"
 
-        NGINX_FROM_IMAGE="dhi.io/nginx:${NGINX_VERSION}-dev"
+        NGINX_FROM_IMAGE="nginx:$NGINX_VERSION"
         ENABLED_MODULES=ngx_http_dav_ext_module
         
         printf 'BUILD_ARGS<<EOF\nNGINX_FROM_IMAGE=%s\nENABLED_MODULES=%s\nEOF\nNGINX_DAV_EXT_MODULE_VERSION=%s\n' "$NGINX_FROM_IMAGE" "$ENABLED_MODULES" "$NGINX_DAV_EXT_MODULE_VERSION" >>"$GITHUB_OUTPUT"
@@ -36,11 +36,6 @@ jobs:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-    - uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
-      with:
-        registry: dhi.io
-        username: ${{ secrets.DOCKER_HUB_USER }}
-        password: ${{ secrets.DOCKER_HUB_PASS }}
     - id: meta
       uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f # v5.8.0
       with:
