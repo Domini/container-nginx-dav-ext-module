@@ -49,7 +49,6 @@ jobs:
           nginx_dav_ext_module_version_${{ steps.generate-build-args.outputs.NGINX_DAV_EXT_MODULE_VERSION }}:127.0.0.1
         build-args: ${{ steps.generate-build-args.outputs.BUILD_ARGS }}
         cache-from: type=gha
-        cache-to: type=gha,mode=max
         labels: ${{ steps.meta.outputs.labels }}
         tags: ${{ env.REGISTRY_IMAGE }}
         outputs: type=image,push-by-digest=true,name-canonical=true,push=true
